@@ -21,7 +21,7 @@ import sys
 import time
 import unicodedata
 import re
-from urllib.parse import urlparse
+
 
 import requests
 from bs4 import BeautifulSoup
@@ -113,11 +113,13 @@ def load_violations(xlsx_path: str) -> list[dict]:
         sys.exit("ERROR: spreadsheet appears empty.")
 
     # Auto-detect header row (first row that contains 'Page URL' somewhere)
-    header_row_idx = 0
+    header_row_idx = None
     for i, row in enumerate(rows):
         if any("page url" in str(c).lower() for c in row if c):
             header_row_idx = i
             break
+    if header_row_idx is None:
+        sys.exit("ERROR: Could not find a header row containing 'Page URL'. Check your column names.")
 
     headers = [str(c).strip() if c else "" for c in rows[header_row_idx]]
 
@@ -138,19 +140,21 @@ def load_violations(xlsx_path: str) -> list[dict]:
         c_sentence  = col("violation content")
     except ValueError as e:
         sys.exit(f"ERROR: {e}")
-
-    violations = []
-    for row in rows[header_row_idx + 1:]:
-        if not any(row):
-            continue
-        violations.append({
-            "franchise_dba":  str(row[c_dba]   or "").strip(),
-            "franchise_main": str(row[c_main]  or "").strip(),
-            "domain":         str(row[c_domain] or "").strip(),
-            "page_url":       str(row[c_page_url] or "").strip(),
-            "keyword":        str(row[c_keyword] or "").strip(),
-            "sentence":       str(row[c_sentence] or "").strip(),
-        })
+violations = []
+for row in rows[header_row_idx + 1:]:
+    if not any(row):
+        continue
+    try:
+    violations.append({
+        "franchise_dba":  str(row[c_dba]   or "").strip(),
+        "franchise_main": str(row[c_main]  or "").strip(),
+        "domain":         str(row[c_domain] or "").strip(),
+        "page_url":       str(row[c_page_url] or "").strip(),
+        "keyword":        str(row[c_keyword] or "").strip(),
+        "sentence":       str(row[c_sentence] or "").strip(),
+    })
+except IndexError:
+    print(f"  WARNING: skipping malformed row (too few columns): {row}")
 
     wb.close()
     return violations
@@ -217,7 +221,6 @@ def write_report(results: list[dict], output_path: str) -> None:
     ]
     ws.append(col_headers)
     for cell in ws[1]:
-        cell.font  = FONT_BOLD
         cell.fill  = PatternFill("solid", fgColor="1F4E79")
         cell.font  = Font(bold=True, color="FFFFFF")
 
@@ -276,7 +279,7 @@ def main():
     parser.add_argument("--output", "-o",   default="compliance_results.xlsx",
                         help="Output file path (default: compliance_results.xlsx)")
     parser.add_argument("--delay",  "-d",   type=float, default=1.5,
-                        help="Seconds between requests to the same domain (default: 1.5)")
+                        help="Seconds to wait between page fetches (default: 1.5)")
     args = parser.parse_args()
 
     print(f"Loading violations from: {args.xlsx}")
