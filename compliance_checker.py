@@ -140,21 +140,22 @@ def load_violations(xlsx_path: str) -> list[dict]:
         c_sentence  = col("violation content")
     except ValueError as e:
         sys.exit(f"ERROR: {e}")
-violations = []
-for row in rows[header_row_idx + 1:]:
-    if not any(row):
-        continue
-    try:
-    violations.append({
-        "franchise_dba":  str(row[c_dba]   or "").strip(),
-        "franchise_main": str(row[c_main]  or "").strip(),
-        "domain":         str(row[c_domain] or "").strip(),
-        "page_url":       str(row[c_page_url] or "").strip(),
-        "keyword":        str(row[c_keyword] or "").strip(),
-        "sentence":       str(row[c_sentence] or "").strip(),
-    })
-except IndexError:
-    print(f"  WARNING: skipping malformed row (too few columns): {row}")
+
+    violations = []
+    for row in rows[header_row_idx + 1:]:
+        if not any(row):
+            continue
+        try:
+            violations.append({
+                "franchise_dba":  str(row[c_dba]   or "").strip(),
+                "franchise_main": str(row[c_main]  or "").strip(),
+                "domain":         str(row[c_domain] or "").strip(),
+                "page_url":       str(row[c_page_url] or "").strip(),
+                "keyword":        str(row[c_keyword] or "").strip(),
+                "sentence":       str(row[c_sentence] or "").strip(),
+            })
+        except IndexError:
+            print(f"  WARNING: skipping malformed row (too few columns): {row}")
 
     wb.close()
     return violations
